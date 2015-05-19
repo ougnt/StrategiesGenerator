@@ -1,0 +1,7 @@
+package com.marketmaker
+
+object MainFunction {
+  def main(args: Array[String]): Unit = {
+    println("Hello, world!")
+  }
+}
