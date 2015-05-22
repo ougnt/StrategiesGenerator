@@ -7,17 +7,25 @@ import com.marketmaker.repositories.Phy
 /**
  * Created by wacharint on 5/17/15.
  */
-object Helper {
+object RepositoryHelper {
 
     val TimeAtMaturity = 300000
     var orderPhyQueue = Seq[Phy]()
     var connection : Option[Connection] = None
 
-    def addPhy(time : Int , inv : Int, value : Double)(implicit databaseName : String, databaseSavedInterval : Int) {
+    def addPhy(time : Int , inv : Int, value : Double)(implicit databaseName : String, databaseSavedInterval : Short) {
 
         orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, value))
 
         if(orderPhyQueue.size >= databaseSavedInterval) {
+            addOrderPhysToDatabase
+            orderPhyQueue = Seq[Phy]()
+        }
+    }
+
+    def forceUpdate(implicit databaseName : String) = {
+
+        if(orderPhyQueue.size != 0) {
             addOrderPhysToDatabase
             orderPhyQueue = Seq[Phy]()
         }

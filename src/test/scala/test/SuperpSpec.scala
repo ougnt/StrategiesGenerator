@@ -1,6 +1,6 @@
 package test
 
-import com.marketmaker.math.Superp
+import com.marketmaker.math.MathHelper
 import org.specs2.mutable.Specification
 
 /**
@@ -15,15 +15,15 @@ class SuperpSpec extends Specification with TestConfiguration {
         """return the maximum value""" in {
 
             // Setup
-            val data = Seq[(Int,Double)]((1,2),(2,3),(3,4))
-            val sup = new Superp
+            val data = Map[(Int,Int),Double]((1,2) -> 2,(3,3) -> 10,(3,4) -> 4)
+            val sup = new MathHelper
 
             // Execute
             val ret = sup.getMax(data)
 
             // Verify
-            ret._1 mustEqual 3
-            ret._2 mustEqual 4
+            ret mustEqual (3,3)
+            data(ret) mustEqual 10
         }
     }
 
@@ -32,15 +32,15 @@ class SuperpSpec extends Specification with TestConfiguration {
         """return the minimum value""" in {
 
             // Setup
-            val data = Seq[(Int,Double)]((1,2),(2,3),(3,4))
-            val sup = new Superp
+            val data = Map[(Int,Int),Double]((1,2) -> 2,(3,3) -> 10,(3,4) -> 4)
+            val sup = new MathHelper
 
             // Execute
             val ret = sup.getMin(data)
 
             // Verify
-            ret._1 mustEqual 1
-            ret._2 mustEqual 2
+            ret mustEqual (1,2)
+            data(ret) mustEqual 2
         }
     }
 }
