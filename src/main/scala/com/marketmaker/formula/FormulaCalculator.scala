@@ -87,6 +87,11 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
         supLimitOrder(currentHoldingInventory, isBidOrder = false)
     }
 
+    def inventoryPunishment(currentInventory : Int) : Double = valueOfInventoryPunishment(currentInventory)
+
+    // TODO : Finish this
+    def supMarketOrder = ???
+
     private def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 

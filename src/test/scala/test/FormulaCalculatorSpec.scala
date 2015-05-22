@@ -201,6 +201,22 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
         }
     }
 
+    """Value of the market order""" should {
+
+        """be able to correctly calculated""" in {
+
+            // Setup
+            val calculator = new TestFormulaCalculator
+            implicit val currentSpread : Byte = 1
+
+            // Execute
+            val ret = calculator.testValueOfMarketOrder(10,11, -2)
+
+            // Verify
+            ret mustEqual -1.1
+        }
+    }
+
     def beAppliedToLimitBidOrderConstrains(maximumHoldingInventory : Int, currentHoldingInventory : Int) : Matcher[Order] = (source : Order) => (
 
         source.orderSize <= maximumHoldingInventory &&
@@ -237,5 +253,12 @@ class TestFormulaCalculator extends FormulaCalculatorTrait {
         (implicit currentSpread: Byte) : Double = {
 
         valueOfSpread(phys, spreadChange)
+    }
+
+    def testValueOfMarketOrder(phyBeforeTheOrderMatch : Double,
+                               phyWhenTheOrderMatch : Double,
+                               orderSize : Int)
+                              (implicit currentSpread : Byte) : Double = {
+        valueOfMarketOrder(phyBeforeTheOrderMatch, phyWhenTheOrderMatch, orderSize)
     }
 }
