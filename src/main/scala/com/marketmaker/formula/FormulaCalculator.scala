@@ -77,11 +77,17 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
-    // TODO : Create tests for supLimitOrder
-    // TODO : Create supBuyLimitOrder
-    // TODO : Create supellLimitOrder
+    def supBuyLimitOrder(currentHoldingInventory : Int)
+                        (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+        supLimitOrder(currentHoldingInventory, isBidOrder = true)
+    }
 
-    def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
+    def supSellLimitOrder(currentHoldingInventory : Int)
+                        (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+        supLimitOrder(currentHoldingInventory, isBidOrder = false)
+    }
+
+    private def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 
         val side = if(isBidOrder) "BID" else "ASK"

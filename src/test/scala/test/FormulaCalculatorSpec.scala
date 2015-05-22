@@ -179,10 +179,25 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             calculator.addPhyAtTerminal
 
             // Execute
-            val ret = calculator.supLimitOrder(currentHoldingInventory = 1, isBidOrder = true)
+            val ret = calculator.supBuyLimitOrder(currentHoldingInventory = 1)
 
             // Verify
             ret._1 must beAppliedToLimitBidOrderConstrains(maximumNumberOfContract, 1)
+        }
+
+        """be able to solved the ask order""" in {
+
+            // Setup
+            implicit val currentSpread : Byte = 1
+            implicit val currentTime : Int = 0
+            val calculator = new FormulaCalculator()
+            calculator.addPhyAtTerminal
+
+            // Execute
+            val ret = calculator.supSellLimitOrder(currentHoldingInventory = 1)
+
+            // Verify
+            ret._1 must beAppliedToLimitAskOrderConstrains(maximumNumberOfContract, 1)
         }
     }
 
@@ -193,6 +208,15 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             (source.orderPosition == Strategy.LimitBuyOrderAtTheMarket ||
                 source.orderPosition == Strategy.LimitBuyOrderAtTheMarketPlusOneSpread),
         """Invalid limit bid order generated"""
+        )
+
+    def beAppliedToLimitAskOrderConstrains(maximumHoldingInventory : Int, currentHoldingInventory : Int) : Matcher[Order] = (source : Order) => (
+
+        source.orderSize <= maximumHoldingInventory &&
+            source.orderSize - currentHoldingInventory <= maximumHoldingInventory &&
+            (source.orderPosition == Strategy.LimitSellOrderAtTheMarket ||
+                source.orderPosition == Strategy.LimitSellOrderAtTheMarketMinusOneSpread),
+        """Invalid limit ask order generated"""
         )
 }
 
