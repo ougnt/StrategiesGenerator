@@ -154,12 +154,12 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             calculator.addPhyAtTerminal
 
             // Verify
-            var interestedPhys = Seq[(Int,Int)]()
+            var interestedPhys = Seq[(Int,Int,Byte)]()
             for(inv : Int <- -maximumNumberOfContract to maximumNumberOfContract) {
 
-                interestedPhys = interestedPhys ++ Seq[(Int,Int)]((0,inv))
+                interestedPhys = interestedPhys ++ Seq[(Int,Int,Byte)]((0,inv,currentSpread))
             }
-            val result = RepositoryHelper.getStrategies(interestedPhys)
+            val result = RepositoryHelper.getPhys(interestedPhys)
 
             result.size mustEqual 21
             result.foreach( res => res.time mustEqual 0)

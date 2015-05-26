@@ -9,6 +9,7 @@ trait MarketParameters {
     val decimalPoint = 8
     val riskAverseLevel = 0.00001
     val maximumNumberOfContract = 10
+    val marketClockInterval = 500
 
     val spreadTransitionMatrix = Map(
         (1,1) -> 0.0, (1,2) -> 0.0, (1,3) -> 0.0,

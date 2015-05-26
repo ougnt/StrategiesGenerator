@@ -17,17 +17,17 @@ class HelperSpec extends Specification with TestConfiguration {
         """save the data when reach the interval""" in {
 
             // setup
-            val phys = Seq[Phy](new Phy(1000, 1, 10), new Phy(1000, 2, 20), new Phy(1000, 3, 30))
+            val phys = Seq[Phy](new Phy(1000, 1, 1, 10), new Phy(1000, 2, 1, 20), new Phy(1000, 3, 1, 30))
             RepositoryHelper.deleteAllPhy
 
             // execute
-            phys.foreach(phy => RepositoryHelper.addPhy(phy.time, phy.inv, phy.value))
+            phys.foreach(phy => RepositoryHelper.addPhy(phy.time, phy.inv, 1, phy.value))
 
             // verify
-            val result = RepositoryHelper.getStrategies(Seq[(Int,Int)](
-                (1000,1),
-                (1000,2),
-                (1000,3)
+            val result = RepositoryHelper.getPhys(Seq[(Int,Int,Byte)](
+                (1000,1,1),
+                (1000,2,1),
+                (1000,3,1)
             ))
 
             result.size mustEqual 3
@@ -40,16 +40,16 @@ class HelperSpec extends Specification with TestConfiguration {
 
 
             // setup
-            val phys = Seq[Phy](new Phy(1000, 1, 10), new Phy(1000, 2, 20))
+            val phys = Seq[Phy](new Phy(1000, 1, 1, 10), new Phy(1000, 2, 1, 20))
             RepositoryHelper.deleteAllPhy
 
             // execute
-            phys.foreach(phy => RepositoryHelper.addPhy(phy.time, phy.inv, phy.value))
+            phys.foreach(phy => RepositoryHelper.addPhy(phy.time, phy.inv, 1, phy.value))
 
             // verify
-            val result = RepositoryHelper.getStrategies(Seq[(Int,Int)](
-                (1000,1),
-                (1000,2)
+            val result = RepositoryHelper.getPhys(Seq[(Int,Int,Byte)](
+                (1000,1,1),
+                (1000,2,1)
             ))
 
             result.size mustEqual 0

@@ -13,9 +13,9 @@ object RepositoryHelper {
     var orderPhyQueue = Seq[Phy]()
     var connection : Option[Connection] = None
 
-    def addPhy(time : Int , inv : Int, value : Double)(implicit databaseName : String, databaseSavedInterval : Short) {
+    def addPhy(time : Int , inv : Int, spread : Byte, value : Double)(implicit databaseName : String, databaseSavedInterval : Short) {
 
-        orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, value))
+        orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, spread, value))
 
         if(orderPhyQueue.size >= databaseSavedInterval) {
             addOrderPhysToDatabase
@@ -43,15 +43,15 @@ object RepositoryHelper {
             """INSERT OR REPLACE INTO phy """.stripMargin
 
         orderPhyQueue.foreach(order => query = query +
-            """SELECT %s,%s,%s UNION """.stripMargin.format(order.time, order.inv, order.value))
+            """SELECT %s,%s,%s,%s UNION """.stripMargin.format(order.time, order.inv, order.spread, order.value))
 
         query = query.replaceAll("UNION[ \n\r\t]*$","")
 
         statement.execute(query)
     }
 
-    def getStrategies(timeAndInvPairs : Seq[
-  (Int,Int)])(implicit databaseName : String) : Seq[Phy] = {
+    def getPhys(timeAndInvPairs : Seq[(Int,Int,Byte)])
+               (implicit databaseName : String) : Seq[Phy] = {
 
         if(connection == None) {
             connect
@@ -67,7 +67,7 @@ object RepositoryHelper {
             """.stripMargin
 
         timeAndInvPairs.foreach(pair => query = query +
-                                                """ OR   (time = %s and inventory = %s ) """.format(pair._1, pair._2))
+                                                """ OR   (time = %s and inventory = %s and spread = %s ) """.format(pair._1, pair._2, pair._3))
 
         val resultSet = statement.executeQuery(query)
         var ret = Seq[Phy]()
@@ -75,7 +75,7 @@ object RepositoryHelper {
         while(resultSet.next())
         {
             ret = ret ++ Seq[Phy](
-                new Phy(resultSet.getInt("time"), resultSet.getInt("inventory"), resultSet.getDouble("phy"))
+                new Phy(resultSet.getInt("time"), resultSet.getInt("inventory"), resultSet.getByte("spread"), resultSet.getDouble("phy"))
             )
         }
 
