@@ -51,12 +51,12 @@ trait FormulaCalculatorTrait extends MarketParameters {
         mathHelper.round(ret, decimalPoint)
     }
 
-    protected def valueOfMarketOrder(phyBeforeTheOrderMatch : Double,
-                                        phyWhenTheOrderMatch : Double,
+    protected def valueOfMarketOrder(phyWhenTheOrderMatch : Double,
                                         orderSize : Int)
                                     (implicit currentSpread : Byte) : Double = {
 
-        phyBeforeTheOrderMatch - phyWhenTheOrderMatch - ( currentSpread * tickSize * orderSize / 2 )
+//        phyBeforeTheOrderMatch - phyWhenTheOrderMatch - ( currentSpread * tickSize * orderSize / 2 )
+        phyWhenTheOrderMatch - ( currentSpread * tickSize * math.abs(orderSize) / 2 )
     }
 
     protected def valueOfInventoryPunishment(currentInventory : Int) : Double = {
@@ -89,8 +89,46 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
     def inventoryPunishment(currentInventory : Int) : Double = valueOfInventoryPunishment(currentInventory)
 
-    // TODO : Finish this
-    def supMarketOrder = ???
+    def supMarketOrder(currentHoldingInventory : Int)
+                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+
+        var interestedTimeAndInventory = Seq[(Int,Int)]()
+        var strategies = Map[(Int,Int), Double]()
+        var orderSize : Int = 0
+
+        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
+
+            interestedTimeAndInventory = interestedTimeAndInventory ++ Seq[(Int,Int)]((currentTime, targetInventory))
+        }
+
+        val phys = RepositoryHelper.getStrategies(interestedTimeAndInventory)
+
+        val phyBeforeMatch = phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory)
+
+        if(phyBeforeMatch.isEmpty) {
+            throw new NullPointerException("""Cannot find the phy with time = %s and inventory = %s""".format(currentTime,
+                currentHoldingInventory))
+        }
+
+        for(orderSize <- -maximumNumberOfContract to maximumNumberOfContract) {
+
+            if(currentHoldingInventory + orderSize > maximumNumberOfContract || currentHoldingInventory + orderSize < -maximumNumberOfContract) {
+
+                // do nothing
+            } else {
+
+                val phyAfterMatch = phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory + orderSize).get
+                val orderSide = if(orderSize > 0) Strategy.MarketBuyOrder else Strategy.MarketSellOrder
+                val newStrategy = (orderSide, orderSize) -> valueOfMarketOrder(phyAfterMatch.value, math.abs(orderSize))
+
+                strategies = strategies ++ Map[(Int,Int),Double](newStrategy)
+            }
+        }
+
+        val bestStrategy = mathHelper.getMax(strategies)
+
+        (new Order(math.abs(bestStrategy._2), bestStrategy._1), phyBeforeMatch.get.value - strategies(bestStrategy))
+    }
 
     private def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {

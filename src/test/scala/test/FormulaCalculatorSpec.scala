@@ -210,10 +210,28 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             implicit val currentSpread : Byte = 1
 
             // Execute
-            val ret = calculator.testValueOfMarketOrder(10,11, -2)
+            val ret = calculator.testValueOfMarketOrder(11, -2)
 
             // Verify
-            ret mustEqual -1.1
+            ret mustEqual 10.9
+        }
+
+        """return the maximum value when sub""" in {
+
+            // Setup
+            val calculator = new FormulaCalculator
+            implicit val currentTime : Int = 0
+            implicit val currentSpread : Byte = 1
+
+            calculator.addPhyAtTerminal
+
+            // Execute
+            val ret = calculator.supMarketOrder(5)
+
+            // Verify
+            ret._2 mustEqual 0.0
+            ret._1.orderSize must beBetween(0, 5)
+            ret._1.orderPosition mustEqual Strategy.MarketSellOrder
         }
     }
 
@@ -255,10 +273,9 @@ class TestFormulaCalculator extends FormulaCalculatorTrait {
         valueOfSpread(phys, spreadChange)
     }
 
-    def testValueOfMarketOrder(phyBeforeTheOrderMatch : Double,
-                               phyWhenTheOrderMatch : Double,
+    def testValueOfMarketOrder(phyWhenTheOrderMatch : Double,
                                orderSize : Int)
                               (implicit currentSpread : Byte) : Double = {
-        valueOfMarketOrder(phyBeforeTheOrderMatch, phyWhenTheOrderMatch, orderSize)
+        valueOfMarketOrder(phyWhenTheOrderMatch, orderSize)
     }
 }
