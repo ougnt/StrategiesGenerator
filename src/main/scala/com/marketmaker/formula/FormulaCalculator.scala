@@ -83,6 +83,18 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
+    def calculateAllPhyTable(endTime : Int) =  {
+
+        addPhyAtTerminal
+        val counter : Int = 0
+        val endCount = endTime / marketClockInterval
+        for(counter <- 0 to endCount) {
+
+            implicit val currentTime : Int = counter * marketClockInterval
+            calculatePhyAtEarlyTimes
+        }
+    }
+
     def calculatePhyAtEarlyTimes(implicit currentTime : Int) = {
 
         // create target intent to get phys

@@ -132,6 +132,31 @@ class RepositoryHelper {
         ret
     }
 
+    def getPhys()
+               (implicit databaseName : String) : Seq[Phy] = {
+
+        if(connection == None) {
+            connect
+        }
+
+        val statement = connection.get.createStatement()
+
+        val query =
+            "SELECT   * FROM     phy"
+
+        val resultSet = statement.executeQuery(query)
+        var ret = Seq[Phy]()
+
+        while(resultSet.next())
+        {
+            ret = ret ++ Seq[Phy](
+                new Phy(resultSet.getInt("time"), resultSet.getInt("inventory"), resultSet.getByte("spread"), resultSet.getDouble("phy"))
+            )
+        }
+
+        ret
+    }
+
     def deleteAllPhy(implicit databaseName : String) = {
 
         if(connection == None) {

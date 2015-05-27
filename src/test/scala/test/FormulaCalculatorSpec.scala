@@ -297,6 +297,20 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             val res = repositoryHelper.getPhys(currentTime + marketClockInterval)
             res.size mustEqual 63
         }
+
+        """calculate all phy in the table""" in {
+
+            // Setup
+            val calculator = new FormulaCalculator
+            calculator.repositoryHelper.deleteAllPhy
+
+            // Execute
+            calculator.calculateAllPhyTable(2000)
+
+            // Verify
+            val res = calculator.repositoryHelper.getPhys()
+            res.size mustEqual 378
+        }
     }
 
     def beAppliedToLimitBidOrderConstrains(maximumHoldingInventory : Int, currentHoldingInventory : Int) : Matcher[Order] = (source : Order) => (
