@@ -15,3 +15,5 @@ resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
 
 // Uncomment to use Akka
 libraryDependencies += "com.typesafe.akka" % "akka-actor_2.11" % "2.3.3"
+
+parallelExecution in Test := false

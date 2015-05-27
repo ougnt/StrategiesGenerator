@@ -12,7 +12,7 @@ import org.specs2.mutable.Specification
 /**
  * Created by wacharint on 5/19/15.
  */
-class FormulaCalculatorSpec extends Specification with TestObservedValue with TestConfiguration {
+class FormulaCalculatorSpec extends Specification with TestObservedValue with TestConfiguration with BaseSpec {
 
     val mathHelper = new MathHelper
     """value of the spread function""" should {
@@ -279,6 +279,22 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             res.find(p => p.spread == 1).get.value mustEqual -0.06009
             res.find(p => p.spread == 2).get.value mustEqual -0.18009
             res.find(p => p.spread == 3).get.value mustEqual -0.33009
+        }
+
+        """calculate and add the phys of all inventories level to the database""" in {
+
+            // Setup
+            val calculator = new FormulaCalculator
+            implicit val currentTime : Int = 0
+            RepositoryHelper.deleteAllPhy
+            calculator.addPhyAtTerminal
+
+            // Execute
+            calculator.calculatePhyAtEarlyTimes
+
+            // Verify
+            val res = RepositoryHelper.getPhys(currentTime + marketClockInterval)
+            res.size mustEqual 63
         }
     }
 

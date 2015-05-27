@@ -82,6 +82,29 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
+    def calculatePhyAtEarlyTimes(implicit currentTime : Int) = {
+
+        // create target intent to get phys
+        var interestedPhy = Seq[(Int,Int,Byte)]()
+        var targetInventory = -maximumNumberOfContract
+        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
+
+            interestedPhy = interestedPhy ++ Seq[(Int,Int,Byte)](
+                (currentTime, targetInventory, 1),
+                (currentTime, targetInventory, 2),
+                (currentTime, targetInventory, 3)
+            )
+        }
+        val currentPhys = RepositoryHelper.getPhys(interestedPhy)
+
+        // looping generate phy at earlier time
+        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
+
+            calculatePhyAtEarlyTime(targetInventory.asInstanceOf[Short], currentPhys)
+        }
+        RepositoryHelper.forceUpdate
+    }
+
     def calculatePhyAtEarlyTime(currentInventory : Short, currentPhys : Seq[Phy])(implicit currentTime : Int) = {
 
         implicit var currentSpread : Byte = 1
