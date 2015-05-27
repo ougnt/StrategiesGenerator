@@ -13,6 +13,11 @@ object RepositoryHelper {
     var orderPhyQueue = Seq[Phy]()
     var connection : Option[Connection] = None
 
+    def addPhy(phy : Phy)(implicit databaseName : String, databaseSavedInterval : Short) {
+
+        addPhy(phy.time, phy.inv, phy.spread, phy.value)
+    }
+
     def addPhy(time : Int , inv : Int, spread : Byte, value : Double)(implicit databaseName : String, databaseSavedInterval : Short) {
 
         orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, spread, value))

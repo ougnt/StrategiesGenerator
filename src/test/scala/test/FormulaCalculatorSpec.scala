@@ -5,7 +5,7 @@ import java.math.MathContext
 import com.marketmaker.formula.{FormulaCalculatorTrait, FormulaCalculator}
 import com.marketmaker.helper.RepositoryHelper
 import com.marketmaker.math.MathHelper
-import com.marketmaker.repositories.{Strategy, Order}
+import com.marketmaker.repositories.{Phy, Strategy, Order}
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
 
@@ -232,6 +232,53 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             ret._2 mustEqual 0.0
             ret._1.orderSize must beBetween(0, 5)
             ret._1.orderPosition mustEqual Strategy.MarketSellOrder
+        }
+    }
+
+    """calculate phy at the earlier time function""" should {
+
+        """calculate and add the phy to the database""" in {
+
+            // Setup
+            implicit val currentTime : Int = 0
+            implicit var currentSpread : Byte = 3
+            val calculator = new FormulaCalculator
+            val currentInventory : Short = -3
+
+            RepositoryHelper.deleteAllPhy
+            calculator.addPhyAtTerminal
+
+            var interestedPhys = Seq[(Int,Int,Byte)]()
+            var inv : Short = 0
+
+            for(inv <- 0 to maximumNumberOfContract) {
+
+                interestedPhys = interestedPhys ++ Seq[(Int,Int,Byte)](
+                    (currentTime,inv,1),
+                    (currentTime,-inv,1),
+                    (currentTime,inv,2),
+                    (currentTime,-inv,2),
+                    (currentTime,inv,3),
+                    (currentTime,-inv,3))
+
+            }
+
+            val currentPhys = RepositoryHelper.getPhys(interestedPhys)
+
+            // Execute
+            calculator.calculatePhyAtEarlyTime(currentInventory, currentPhys)
+            RepositoryHelper.forceUpdate
+
+            // Verify
+            val res = RepositoryHelper.getPhys(Seq[(Int,Int,Byte)](
+                (500,currentInventory,1),
+                (500,currentInventory,2),
+                (500,currentInventory,3)
+            ))
+            res.size mustEqual 3
+            res.find(p => p.spread == 1).get.value mustEqual -0.06009
+            res.find(p => p.spread == 2).get.value mustEqual -0.18009
+            res.find(p => p.spread == 3).get.value mustEqual -0.33009
         }
     }
 

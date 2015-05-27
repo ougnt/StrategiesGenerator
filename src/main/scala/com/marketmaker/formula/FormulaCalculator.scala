@@ -64,10 +64,15 @@ trait FormulaCalculatorTrait extends MarketParameters {
         riskAverseLevel * currentInventory * currentInventory
     }
 
-    def addPhyAtTerminal(implicit currentSpread : Byte, databaseName : String, databaseSaveInterval : Short)  = {
+    def addPhyAtTerminal(implicit databaseName : String, databaseSaveInterval : Short)  = {
 
         for( inv <- -maximumNumberOfContract to maximumNumberOfContract) {
 
+            var currentSpread : Byte = 1
+            RepositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
+            currentSpread = 2
+            RepositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
+            currentSpread = 3
             RepositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
         }
 
@@ -77,26 +82,38 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
-    def calculatePhyAtEarlyTime(maxTime : Int, currentInventory : Short)(implicit currentTime : Int) = {
+    def calculatePhyAtEarlyTime(currentInventory : Short, currentPhys : Seq[Phy])(implicit currentTime : Int) = {
 
         implicit var currentSpread : Byte = 1
+        var spread = 1
 
         for(spread <- 1 to 3) {
 
-            addPhyAtTerminal
-            var interestedPhys = Seq[(Int,Int)]()
-            var inv : Short = 0
+            currentSpread = spread.asInstanceOf[Byte]
 
-            for(inv <- 0 to maximumNumberOfContract) {
+            val currentPhyMap = Map[Int,Double](
+                1 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 1).get.value,
+                2 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 2).get.value,
+                3 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 3).get.value
+            )
 
-                interestedPhys = interestedPhys ++ Seq[(Int,Int)]((currentTime,inv),(currentTime,-inv))
-            }
+            // TODO : Add the best strategies to the created strategies table
+            val bestLimitBuyOrder = supBuyLimitOrder(currentInventory)
+            val bestLimitSellOrder = supSellLimitOrder(currentInventory)
 
-            //val currentPhys = RepositoryHelper.getPhys(interestedPhys)
+            val valueOfPhyAtTimeBefore = currentPhyMap(currentSpread) + valueOfSpread(currentPhyMap) +
+                bestLimitBuyOrder._2 +
+                bestLimitSellOrder._2 -
+                inventoryPunishment(currentInventory)
 
-            //val valueOfPhyTimeBefore =
 
-            //val phyAtTimeBefore : Phy = new Phy(currentTime + marketClockInterval, currentInventory, ???)
+            val phyAtTimeBefore : Phy = new Phy(
+                currentTime + marketClockInterval,
+                currentInventory,
+                currentSpread,
+                valueOfPhyAtTimeBefore)
+
+            RepositoryHelper.addPhy(phyAtTimeBefore)
         }
     }
 
