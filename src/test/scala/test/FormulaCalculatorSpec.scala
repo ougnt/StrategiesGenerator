@@ -15,6 +15,8 @@ import org.specs2.mutable.Specification
 class FormulaCalculatorSpec extends Specification with TestObservedValue with TestConfiguration with BaseSpec {
 
     val mathHelper = new MathHelper
+    sequential
+
     """value of the spread function""" should {
 
         """return the right value when the starting spread = 1""" in {
@@ -146,7 +148,8 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
         """be able to generate all phys at the terminal from a scratch""" in {
 
             // Setup
-            RepositoryHelper.deleteAllPhy
+            val repositoryHelper = new RepositoryHelper
+            repositoryHelper.deleteAllPhy
             val calculator = new FormulaCalculator
             implicit val currentSpread : Byte = 1
 
@@ -159,7 +162,7 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
 
                 interestedPhys = interestedPhys ++ Seq[(Int,Int,Byte)]((0,inv,currentSpread))
             }
-            val result = RepositoryHelper.getPhys(interestedPhys)
+            val result = repositoryHelper.getPhys(interestedPhys)
 
             result.size mustEqual 21
             result.foreach( res => res.time mustEqual 0)
@@ -245,32 +248,29 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             val calculator = new FormulaCalculator
             val currentInventory : Short = -3
 
-            RepositoryHelper.deleteAllPhy
+            calculator.repositoryHelper.deleteAllPhy
             calculator.addPhyAtTerminal
 
             var interestedPhys = Seq[(Int,Int,Byte)]()
-            var inv : Short = 0
+            var inv : Int = 0
 
-            for(inv <- 0 to maximumNumberOfContract) {
+            for(inv <- -maximumNumberOfContract to maximumNumberOfContract) {
 
                 interestedPhys = interestedPhys ++ Seq[(Int,Int,Byte)](
                     (currentTime,inv,1),
-                    (currentTime,-inv,1),
                     (currentTime,inv,2),
-                    (currentTime,-inv,2),
-                    (currentTime,inv,3),
-                    (currentTime,-inv,3))
+                    (currentTime,inv,3))
 
             }
 
-            val currentPhys = RepositoryHelper.getPhys(interestedPhys)
+            val currentPhys = calculator.repositoryHelper.getPhys(interestedPhys)
 
             // Execute
-            calculator.calculatePhyAtEarlyTime(currentInventory, currentPhys)
-            RepositoryHelper.forceUpdate
+            calculator.calculatePhyAtEarlyTime(currentInventory.asInstanceOf[Short], currentPhys)
+            calculator.repositoryHelper.forceUpdate
 
             // Verify
-            val res = RepositoryHelper.getPhys(Seq[(Int,Int,Byte)](
+            val res = calculator.repositoryHelper.getPhys(Seq[(Int,Int,Byte)](
                 (500,currentInventory,1),
                 (500,currentInventory,2),
                 (500,currentInventory,3)
@@ -284,16 +284,17 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
         """calculate and add the phys of all inventories level to the database""" in {
 
             // Setup
+            val repositoryHelper = new RepositoryHelper
             val calculator = new FormulaCalculator
             implicit val currentTime : Int = 0
-            RepositoryHelper.deleteAllPhy
+            repositoryHelper.deleteAllPhy
             calculator.addPhyAtTerminal
 
             // Execute
             calculator.calculatePhyAtEarlyTimes
 
             // Verify
-            val res = RepositoryHelper.getPhys(currentTime + marketClockInterval)
+            val res = repositoryHelper.getPhys(currentTime + marketClockInterval)
             res.size mustEqual 63
         }
     }

@@ -7,11 +7,12 @@ import com.marketmaker.repositories.Phy
 /**
  * Created by wacharint on 5/17/15.
  */
-object RepositoryHelper {
+class RepositoryHelper {
 
     val TimeAtMaturity = 300000
     var orderPhyQueue = Seq[Phy]()
     var connection : Option[Connection] = None
+    var isUpdating = false
 
     def addPhy(phy : Phy)(implicit databaseName : String, databaseSavedInterval : Short) {
 
@@ -20,17 +21,21 @@ object RepositoryHelper {
 
     def addPhy(time : Int , inv : Int, spread : Byte, value : Double)(implicit databaseName : String, databaseSavedInterval : Short) {
 
-        orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, spread, value))
+        if(orderPhyQueue.find( p => p.time == time && p.spread == spread && p.inv == inv).isEmpty) {
+            while(isUpdating){ Thread.sleep(10)}
+            orderPhyQueue = orderPhyQueue ++ Seq[Phy](new Phy(time, inv, spread, value))
 
-        if(orderPhyQueue.size >= databaseSavedInterval) {
-            addOrderPhysToDatabase
-            orderPhyQueue = Seq[Phy]()
+            if(orderPhyQueue.size >= databaseSavedInterval) {
+                addOrderPhysToDatabase
+                orderPhyQueue = Seq[Phy]()
+            }
         }
     }
 
     def forceUpdate(implicit databaseName : String) = {
 
         if(orderPhyQueue.size != 0) {
+            while(isUpdating){ Thread.sleep(10)}
             addOrderPhysToDatabase
             orderPhyQueue = Seq[Phy]()
         }
@@ -38,9 +43,13 @@ object RepositoryHelper {
 
     def addOrderPhysToDatabase(implicit databaseName : String): Unit = {
 
+        isUpdating = true
+
         if(connection == None) {
             connect
         }
+
+        orderPhyQueue = orderPhyQueue.distinct
 
         val statement = connection.get.createStatement()
 
@@ -52,7 +61,15 @@ object RepositoryHelper {
 
         query = query.replaceAll("UNION[ \n\r\t]*$","")
 
-        statement.execute(query)
+        val sizeOfTheQueue = orderPhyQueue.size
+        val updatedRow = statement.executeUpdate(query)
+
+        isUpdating = false
+
+        if(sizeOfTheQueue != updatedRow) {
+
+            throw new RuntimeException("The updated rows is not equal to the number of order in the queue.")
+        }
     }
 
     def getPhys(timeAndInvPairs : Seq[(Int,Int,Byte)])
@@ -84,7 +101,7 @@ object RepositoryHelper {
             )
         }
 
-        ret
+        ret.distinct
     }
 
     def getPhys(time : Int)
