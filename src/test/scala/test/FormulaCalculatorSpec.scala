@@ -267,7 +267,7 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
 
             // Execute
             calculator.calculatePhyAtEarlyTime(currentInventory.asInstanceOf[Short], currentPhys)
-            calculator.repositoryHelper.forceUpdate
+            calculator.repositoryHelper.forceUpdatePhyTable
 
             // Verify
             val res = calculator.repositoryHelper.getPhys(Seq[(Int,Int,Byte)](

@@ -77,7 +77,7 @@ trait FormulaCalculatorTrait extends MarketParameters {
             repositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
         }
 
-        repositoryHelper.forceUpdate
+        repositoryHelper.forceUpdatePhyTable
     }
 }
 
@@ -115,7 +115,7 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
             calculatePhyAtEarlyTime(targetInventory.asInstanceOf[Short], currentPhys)
         }
-        repositoryHelper.forceUpdate
+        repositoryHelper.forceUpdatePhyTable
     }
 
     def calculatePhyAtEarlyTime(currentInventory : Short, currentPhys : Seq[Phy])(implicit currentTime : Int) = {
