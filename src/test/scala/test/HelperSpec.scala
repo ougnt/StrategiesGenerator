@@ -5,7 +5,8 @@
 package test
 
 import com.marketmaker.helper.RepositoryHelper
-import com.marketmaker.repositories.{OrderValue, Phy}
+import com.marketmaker.repositories.{Strategy, OrderValue, Phy}
+import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
 class HelperSpec extends Specification with TestConfiguration {
@@ -65,7 +66,10 @@ class HelperSpec extends Specification with TestConfiguration {
 
             // setup
             val repositoryHelper = new RepositoryHelper
-            val orderValues = Seq[OrderValue](new OrderValue(1000, 1, 1, 10, 11), new OrderValue(1000, 2, 1, 20, 22), new OrderValue(1000, 3, 1, 30, 33))
+            val orderValues = Seq[OrderValue](
+                new OrderValue(1000, 1, 1, 10, 11, Strategy.LimitBuyOrderAtTheMarket, 10, Strategy.LimitSellOrderAtTheMarket, 20, Strategy.MarketBuyOrder, 30),
+                new OrderValue(1000, 2, 1, 20, 22, Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, 100, Strategy.LimitSellOrderAtTheMarketMinusOneSpread, 200, Strategy.MarketSellOrder, 300),
+                new OrderValue(1000, 3, 1, 30, 33, Strategy.LimitBuyOrderAtTheMarket, 1000, Strategy.LimitSellOrderAtTheMarket, 2000, Strategy.MarketBuyOrder, 3000))
             repositoryHelper.deleteAllPhy
 
             // execute
@@ -79,12 +83,14 @@ class HelperSpec extends Specification with TestConfiguration {
             ))
 
             result.size mustEqual 3
-            result.filter(r => r.time == 1000 && r.inventory == 1).head.limitOrderStrategyValue mustEqual 10
-            result.filter(r => r.time == 1000 && r.inventory == 1).head.marketOrderStrategyValue mustEqual 11
-            result.filter(r => r.time == 1000 && r.inventory == 2).head.limitOrderStrategyValue mustEqual 20
-            result.filter(r => r.time == 1000 && r.inventory == 2).head.marketOrderStrategyValue mustEqual 22
-            result.filter(r => r.time == 1000 && r.inventory == 3).head.limitOrderStrategyValue mustEqual 30
-            result.filter(r => r.time == 1000 && r.inventory == 3).head.marketOrderStrategyValue mustEqual 33
+            val inv1Res = result.find(r => r.time == 1000 && r.inventory == 1 && r.spread == 1).get
+            val inv2Res = result.find(r => r.time == 1000 && r.inventory == 2 && r.spread == 1).get
+            val inv3Res = result.find(r => r.time == 1000 && r.inventory == 3 && r.spread == 1).get
+
+            inv1Res must beOrderValue(orderValues.find(r => r.time == 1000 && r.inventory == 1 && r.spread == 1).get)
+            inv2Res must beOrderValue(orderValues.find(r => r.time == 1000 && r.inventory == 2 && r.spread == 1).get)
+            inv3Res must beOrderValue(orderValues.find(r => r.time == 1000 && r.inventory == 3 && r.spread == 1).get)
+
             repositoryHelper.orderOrderValueQueue.size mustEqual 0
         }
         """not save the data when haven't reach the interval""" in {
@@ -92,7 +98,10 @@ class HelperSpec extends Specification with TestConfiguration {
 
             // setup
             val repositoryHelper = new RepositoryHelper
-            val orderValues = Seq[OrderValue](new OrderValue(1000, 1, 1, 10, 11), new OrderValue(1000, 2, 1, 20, 22))
+            val orderValues = Seq[OrderValue](
+                new OrderValue(1000, 1, 1, 10, 11, Strategy.LimitBuyOrderAtTheMarket, 10, Strategy.LimitSellOrderAtTheMarket, 20, Strategy.MarketBuyOrder, 30),
+                new OrderValue(1000, 2, 1, 20, 22, Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, 100, Strategy.LimitSellOrderAtTheMarketMinusOneSpread, 200, Strategy.MarketSellOrder, 300)
+            )
             repositoryHelper.deleteAllPhy
 
             // execute
@@ -108,4 +117,21 @@ class HelperSpec extends Specification with TestConfiguration {
             repositoryHelper.orderOrderValueQueue.size mustEqual 2
         }
     }
+
+    def beOrderValue(expected : OrderValue) : Matcher[OrderValue] = (src : OrderValue) =>  (
+
+        src.time == expected.time &&
+            src.inventory == expected.inventory &&
+            src.spread == expected.spread &&
+            src.limitOrderStrategyValue == expected.limitOrderStrategyValue &&
+            src.marketOrderStrategyValue == expected.marketOrderStrategyValue &&
+            src.limitBuyType == expected.limitBuyType &&
+            src.limitBuySize == expected.limitBuySize &&
+            src.limitSellType == expected.limitSellType &&
+            src.limitSellSize == expected.limitSellSize &&
+            src.marketType == expected.marketType &&
+            src.marketSize == expected.marketSize ,
+        """The order valus are matced""",
+        """The order value are not matched"""
+        )
 }

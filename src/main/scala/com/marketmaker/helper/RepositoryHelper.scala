@@ -37,12 +37,7 @@ class RepositoryHelper {
 
         if(orderOrderValueQueue.find( p => p.time == orderValue.time && p.spread == orderValue.spread && p.inventory == orderValue.inventory).isEmpty) {
             while(isUpdating){ Thread.sleep(10)}
-            orderOrderValueQueue = orderOrderValueQueue ++
-                Seq[OrderValue](new OrderValue(orderValue.time,
-                    orderValue.inventory,
-                    orderValue.spread,
-                    orderValue.limitOrderStrategyValue,
-                    orderValue.marketOrderStrategyValue))
+            orderOrderValueQueue = orderOrderValueQueue ++ Seq[OrderValue](orderValue)
 
             if(orderOrderValueQueue.size >= databaseSavedInterval) {
                 addOrderOrderValueToDatabase
@@ -116,11 +111,17 @@ class RepositoryHelper {
             """INSERT OR REPLACE INTO order_value """.stripMargin
 
         orderOrderValueQueue.foreach(order => query = query +
-            """SELECT %s,%s,%s,%s,%s UNION """.stripMargin.format(order.time,
+            """SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s UNION """.stripMargin.format(order.time,
                 order.inventory,
                 order.spread,
                 order.limitOrderStrategyValue,
-                order.marketOrderStrategyValue))
+                order.marketOrderStrategyValue,
+                order.limitBuyType,
+                order.limitBuySize,
+                order.limitSellType,
+                order.limitSellSize,
+                order.marketType,
+                order.marketSize))
 
         query = query.replaceAll("UNION[ \n\r\t]*$","")
 
@@ -249,7 +250,13 @@ class RepositoryHelper {
                     resultSet.getInt("inventory"),
                     resultSet.getByte("spread"),
                     resultSet.getDouble("limit_order_strategy_value"),
-                    resultSet.getDouble("market_order_strategy_value"))
+                    resultSet.getDouble("market_order_strategy_value"),
+                    resultSet.getInt("limit_buy_type"),
+                    resultSet.getInt("limit_buy_size"),
+                    resultSet.getInt("limit_sell_type"),
+                    resultSet.getInt("limit_sell_size"),
+                    resultSet.getInt("market_type"),
+                    resultSet.getInt("market_size"))
             )
         }
 
@@ -281,7 +288,13 @@ class RepositoryHelper {
                     resultSet.getInt("inventory"),
                     resultSet.getByte("spread"),
                     resultSet.getDouble("limit_order_strategy_value"),
-                    resultSet.getDouble("market_order_strategy_value"))
+                    resultSet.getDouble("market_order_strategy_value"),
+                    resultSet.getInt("limit_buy_type"),
+                    resultSet.getInt("limit_buy_size"),
+                    resultSet.getInt("limit_sell_type"),
+                    resultSet.getInt("limit_sell_size"),
+                    resultSet.getInt("market_type"),
+                    resultSet.getInt("market_size"))
             )
         }
 
@@ -310,7 +323,13 @@ class RepositoryHelper {
                     resultSet.getInt("inventory"),
                     resultSet.getByte("spread"),
                     resultSet.getDouble("limit_order_strategy_value"),
-                    resultSet.getDouble("market_order_strategy_value"))
+                    resultSet.getDouble("market_order_strategy_value"),
+                    resultSet.getInt("limit_buy_type"),
+                    resultSet.getInt("limit_buy_size"),
+                    resultSet.getInt("limit_sell_type"),
+                    resultSet.getInt("limit_sell_size"),
+                    resultSet.getInt("market_type"),
+                    resultSet.getInt("market_size"))
             )
         }
 
