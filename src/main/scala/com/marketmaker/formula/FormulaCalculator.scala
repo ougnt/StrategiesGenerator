@@ -6,12 +6,12 @@ package com.marketmaker.formula
 
 import com.marketmaker.helper.{Configuration, RepositoryHelper}
 import com.marketmaker.math._
-import com.marketmaker.repositories.{Order, Strategy, Phy}
+import com.marketmaker.repositories.{OrderValue, Order, Strategy, Phy}
 
 trait FormulaCalculatorTrait extends MarketParameters {
 
     val mathHelper = new MathHelper
-    val repositoryHelper = new RepositoryHelper
+    var repositoryHelper = new RepositoryHelper
 
     protected def valueOfSpread(phys : Map[Int,Double],
                       spreadChange : Map[(Int,Int),Double] = spreadTransitionMatrix)
@@ -79,6 +79,98 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
         repositoryHelper.forceUpdatePhyTable
     }
+
+
+    def calculateOrderValue(currentInventory : Short, currentPhys : Seq[Phy], earlierPhy : Phy)
+                           (implicit currentTime : Int, currentSpread : Byte) : Double = {
+
+        val phyMap = Map[Int, Double](
+            1 -> currentPhys.find(p => p.spread == 1 && p.time == currentTime && p.inv == currentInventory).get.value,
+            2 -> currentPhys.find(p => p.spread == 2 && p.time == currentTime && p.inv == currentInventory).get.value,
+            3 -> currentPhys.find(p => p.spread == 3 && p.time == currentTime && p.inv == currentInventory).get.value
+        )
+        val calculatedValueOfSpread = valueOfSpread(phyMap, spreadTransitionMatrix)
+        val calculatedSupBuyLimitOrder = supBuyLimitOrder(currentInventory)
+        val calculatedSupSellLimitOrder = supSellLimitOrder(currentInventory)
+        val calculatedInventoryPunishment = inventoryPunishment(currentInventory)
+
+        val valueOfLimitOrderStrategy = - (currentPhys.find(p => p.spread == currentSpread && p.time == currentTime && p.inv == currentInventory).get.value - earlierPhy.value) -
+            calculatedValueOfSpread -
+            calculatedSupBuyLimitOrder._2 -
+            calculatedSupSellLimitOrder._2  +
+            calculatedInventoryPunishment
+
+        valueOfLimitOrderStrategy
+
+        // TODO : looping calculate the order value
+    }
+
+
+    def supBuyLimitOrder(currentHoldingInventory : Int)
+                        (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+        supLimitOrder(currentHoldingInventory, isBidOrder = true)
+    }
+
+    def supSellLimitOrder(currentHoldingInventory : Int)
+                         (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+        supLimitOrder(currentHoldingInventory, isBidOrder = false)
+    }
+
+    def inventoryPunishment(currentInventory : Int) : Double = valueOfInventoryPunishment(currentInventory)
+
+
+    protected def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
+                             (implicit currentSpread : Byte, currentTime : Int) : (Order,Double)
+
+
+    protected def getStrategies(strategies : Map[(Int,Int) , Double],
+                              isAggressive : Boolean,
+                              isBidOrder : Boolean,
+                              lamda : Double,
+                              phys : Seq[Phy],
+                              currentHoldingInventory : Int)
+                             (implicit currentSpread : Byte, currentTime : Int) : Map[(Int, Int), Double] = {
+
+        var returnStrategies = strategies
+        val targetInventory = 0
+        for(targetInventory <- 0 to maximumNumberOfContract - currentHoldingInventory) {
+
+            val inventoryChange = if(isBidOrder) targetInventory else -targetInventory
+            val phyBeforeMatch : Phy =
+                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory) orNull
+
+            val phyAfterMatch : Phy =
+                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory + inventoryChange) orNull
+
+            if(phyAfterMatch == null || phyBeforeMatch == null) {
+
+                // the order is not valid, skip to the next loop
+            } else {
+
+                val value = valueOfLimitOrder(lamda,
+                    phyAfterMatch.value,
+                    phyBeforeMatch.value,
+                    targetInventory,
+                    isAggressive)
+
+                if (isBidOrder && !isAggressive) {
+
+                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarket, targetInventory) -> value
+                } else if (isBidOrder && isAggressive) {
+
+                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, targetInventory) -> value
+                } else if (!isBidOrder && isAggressive) {
+
+                    returnStrategies += (Strategy.LimitSellOrderAtTheMarketMinusOneSpread, targetInventory) -> value
+                } else {
+
+                    returnStrategies += (Strategy.LimitSellOrderAtTheMarket, targetInventory) -> value
+                }
+            }
+        }
+
+        returnStrategies
+    }
 }
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
@@ -143,7 +235,6 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
                     bestLimitSellOrder._2 -
                     inventoryPunishment(currentInventory)
 
-
                 val phyAtTimeBefore: Phy = new Phy(
                     currentTime + marketClockInterval,
                     currentInventory,
@@ -159,18 +250,6 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
             }
         }
     }
-
-    def supBuyLimitOrder(currentHoldingInventory : Int)
-                        (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
-        supLimitOrder(currentHoldingInventory, isBidOrder = true)
-    }
-
-    def supSellLimitOrder(currentHoldingInventory : Int)
-                        (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
-        supLimitOrder(currentHoldingInventory, isBidOrder = false)
-    }
-
-    def inventoryPunishment(currentInventory : Int) : Double = valueOfInventoryPunishment(currentInventory)
 
     def supMarketOrder(currentHoldingInventory : Int)
                       (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
@@ -213,8 +292,8 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
         (new Order(math.abs(bestStrategy._2), bestStrategy._1), phyBeforeMatch.get.value - strategies(bestStrategy))
     }
 
-    private def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
-                     (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+    protected def supLimitOrder(currentHoldingInventory : Int, isBidOrder : Boolean)
+                             (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 
         val side = if(isBidOrder) "BID" else "ASK"
         var interestedTimeAndInventory = Seq[(Int,Int,Byte)]()
@@ -246,54 +325,5 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
         val bestStrategy = mathHelper.getMax(strategies)
 
         (new Order(bestStrategy._2, bestStrategy._1), strategies(bestStrategy))
-    }
-
-    private def getStrategies(strategies : Map[(Int,Int) , Double],
-                       isAggressive : Boolean,
-                       isBidOrder : Boolean,
-                       lamda : Double,
-                       phys : Seq[Phy],
-                       currentHoldingInventory : Int)
-                      (implicit currentSpread : Byte, currentTime : Int) : Map[(Int, Int), Double] = {
-
-        var returnStrategies = strategies
-        val targetInventory = 0
-        for(targetInventory <- 0 to maximumNumberOfContract - currentHoldingInventory) {
-
-            val inventoryChange = if(isBidOrder) targetInventory else -targetInventory
-            val phyBeforeMatch : Phy =
-                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory) orNull
-
-            val phyAfterMatch : Phy =
-                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory + inventoryChange) orNull
-
-            if(phyAfterMatch == null || phyBeforeMatch == null) {
-
-                // the order is not valid, skip to the next loop
-            } else {
-
-                val value = valueOfLimitOrder(lamda,
-                    phyAfterMatch.value,
-                    phyBeforeMatch.value,
-                    targetInventory,
-                    isAggressive)
-
-                if (isBidOrder && !isAggressive) {
-
-                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarket, targetInventory) -> value
-                } else if (isBidOrder && isAggressive) {
-
-                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, targetInventory) -> value
-                } else if (!isBidOrder && isAggressive) {
-
-                    returnStrategies += (Strategy.LimitSellOrderAtTheMarketMinusOneSpread, targetInventory) -> value
-                } else {
-
-                    returnStrategies += (Strategy.LimitSellOrderAtTheMarket, targetInventory) -> value
-                }
-            }
-        }
-
-        returnStrategies
     }
 }

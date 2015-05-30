@@ -313,6 +313,36 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
         }
     }
 
+    """calculate value of the limit order value""" should {
+
+        """provide the correct value""" in {
+
+            // Setting
+            implicit val currentTime : Int = 0
+            implicit val currentSpread : Byte = 1
+            val repositoryHelper = new RepositoryHelper()
+            val mockCalculator = new MockFormulaCalculatorForTestCalculateValueOfLimitOrder
+            val fakeInventory : Short = 10
+
+            mockCalculator.repositoryHelper = repositoryHelper
+            mockCalculator.repositoryHelper.deleteAllPhy
+            mockCalculator.addPhyAtTerminal
+
+            val fakeCurrentsPhy = mockCalculator.repositoryHelper.getPhys()
+            val fakeEarlierPhy = new Phy(500,fakeInventory,currentSpread,1.0)
+
+            // Execute
+            val res = mockCalculator.calculateOrderValue(fakeInventory, fakeCurrentsPhy, fakeEarlierPhy)
+
+            // Verify
+            val currentPhyValue = fakeCurrentsPhy.find(p => p.spread == currentSpread && p.inv == fakeInventory).get.value
+            val earlierPhyValue = fakeEarlierPhy.value
+
+            val expectedResult = - (currentPhyValue - earlierPhyValue) - 10 - 20 - 30 + 40
+            res mustEqual expectedResult
+        }
+    }
+
     def beAppliedToLimitBidOrderConstrains(maximumHoldingInventory : Int, currentHoldingInventory : Int) : Matcher[Order] = (source : Order) => (
 
         source.orderSize <= maximumHoldingInventory &&
@@ -356,4 +386,25 @@ class TestFormulaCalculator extends FormulaCalculatorTrait {
                               (implicit currentSpread : Byte) : Double = {
         valueOfMarketOrder(phyWhenTheOrderMatch, orderSize)
     }
+
+    override protected def supLimitOrder(currentHoldingInventory: Int, isBidOrder: Boolean)(implicit currentSpread: Byte, currentTime: Int): (Order, Double) = null
+}
+
+class MockFormulaCalculatorForTestCalculateValueOfLimitOrder extends FormulaCalculatorTrait {
+
+    override def valueOfSpread(phys : Map[Int,Double],
+                               spreadChange : Map[(Int,Int),Double] = spreadTransitionMatrix)
+                              (implicit currentSpread: Byte) : Double = 10
+
+    override def supBuyLimitOrder(currentHoldingInventory : Int)
+                                 (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) =
+        (new Order(2,Strategy.LimitBuyOrderAtTheMarket), 20)
+
+    override def supSellLimitOrder(currentHoldingInventory : Int)
+                                 (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) =
+        (new Order(2,Strategy.LimitSellOrderAtTheMarket), 30)
+
+    override def inventoryPunishment(currentInventory : Int) : Double = 40
+
+    override protected def supLimitOrder(currentHoldingInventory: Int, isBidOrder: Boolean)(implicit currentSpread: Byte, currentTime: Int): (Order, Double) = null
 }
