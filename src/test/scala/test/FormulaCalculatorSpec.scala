@@ -341,19 +341,20 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             val earlierPhyValue = fakeEarlierPhy.value
 
             val expectedLimitOrderValue = - (currentPhyValue - earlierPhyValue) - 10 - 20 - 30 + 40
+            val expectedMarketOrderValue = currentPhyValue - 22
             val resultOrderValue = mockCalculator.repositoryHelper.getOrderValue().head
             val expectedOrderValue = new OrderValue(
                 currentTime,
             fakeInventory,
             currentSpread,
             expectedLimitOrderValue,
-            0,
+            expectedMarketOrderValue,
             Strategy.LimitBuyOrderAtTheMarket,
             2,
             Strategy.LimitSellOrderAtTheMarket,
             2,
-            0,
-            0
+            Strategy.MarketSellOrder,
+            3
             )
             resultOrderValue must beOrderValue(expectedOrderValue)
         }
@@ -404,6 +405,8 @@ class TestFormulaCalculator extends FormulaCalculatorTrait {
     }
 
     override protected def supLimitOrder(currentHoldingInventory: Int, isBidOrder: Boolean)(implicit currentSpread: Byte, currentTime: Int): (Order, Double) = null
+
+    override def supMarketOrder(currentHoldingInventory: Int)(implicit currentSpread: Byte, currentTime: Int): (Order, Double) = ???
 }
 
 class MockFormulaCalculatorForTestCalculateValueOfLimitOrder extends FormulaCalculatorTrait {
@@ -421,6 +424,10 @@ class MockFormulaCalculatorForTestCalculateValueOfLimitOrder extends FormulaCalc
         (new Order(2,Strategy.LimitSellOrderAtTheMarket), 30)
 
     override def inventoryPunishment(currentInventory : Int) : Double = 40
+
+    override def supMarketOrder(currentHoldingInventory : Int)
+                               (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) =
+        (new Order(3,Strategy.MarketSellOrder), 22)
 
     override protected def supLimitOrder(currentHoldingInventory: Int, isBidOrder: Boolean)(implicit currentSpread: Byte, currentTime: Int): (Order, Double) = null
 }

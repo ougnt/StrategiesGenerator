@@ -82,9 +82,8 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
 
     def calculateOrderValue(currentInventory : Short, currentPhys : Seq[Phy], earlierPhy : Phy)
-                           (implicit currentTime : Int, currentSpread : Byte, databaseName : String, databaseSavedInterval : Short) : Double = {
+                           (implicit currentTime : Int, currentSpread : Byte, databaseName : String, databaseSavedInterval : Short) = {
 
-        // TODO : Calculate the marketOrder strategy value
         val phyMap = Map[Int, Double](
             1 -> currentPhys.find(p => p.spread == 1 && p.time == currentTime && p.inv == currentInventory).get.value,
             2 -> currentPhys.find(p => p.spread == 2 && p.time == currentTime && p.inv == currentInventory).get.value,
@@ -95,24 +94,29 @@ trait FormulaCalculatorTrait extends MarketParameters {
         val calculatedSupSellLimitOrder = supSellLimitOrder(currentInventory)
         val calculatedInventoryPunishment = inventoryPunishment(currentInventory)
 
-        val valueOfLimitOrderStrategy = - (currentPhys.find(p => p.spread == currentSpread && p.time == currentTime && p.inv == currentInventory).get.value - earlierPhy.value) -
+        val calculatedSupMarketOrder = supMarketOrder(currentInventory)
+
+        val valueOfCurrentPhy = currentPhys.find(p => p.spread == currentSpread && p.time == currentTime && p.inv == currentInventory).get.value
+
+        val valueOfLimitOrderStrategy = - (valueOfCurrentPhy - earlierPhy.value) -
             calculatedValueOfSpread -
             calculatedSupBuyLimitOrder._2 -
             calculatedSupSellLimitOrder._2  +
             calculatedInventoryPunishment
 
+        val valueOfMarketOrderStrategy = valueOfCurrentPhy - calculatedSupMarketOrder._2
+
         repositoryHelper.addOrderValue(new OrderValue(currentTime,
         currentInventory,
         currentSpread,
         valueOfLimitOrderStrategy,
-        0,
+        valueOfMarketOrderStrategy,
         calculatedSupBuyLimitOrder._1.orderPosition,
         calculatedSupBuyLimitOrder._1.orderSize,
         calculatedSupSellLimitOrder._1.orderPosition,
         calculatedSupSellLimitOrder._1.orderSize,
-        0,
-        0))
-        0
+        calculatedSupMarketOrder._1.orderPosition,
+        calculatedSupMarketOrder._1.orderSize))
     }
 
     // TODO : looping calculate the order value
@@ -183,6 +187,11 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
         returnStrategies
     }
+
+
+    def supMarketOrder(currentHoldingInventory : Int)
+                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double)
+
 }
 
 class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
@@ -263,8 +272,8 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
         }
     }
 
-    def supMarketOrder(currentHoldingInventory : Int)
-                      (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
+    override def supMarketOrder(currentHoldingInventory : Int)
+                               (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 
         var interestedTimeAndInventory = Seq[(Int,Int,Byte)]()
         var strategies = Map[(Int,Int), Double]()
