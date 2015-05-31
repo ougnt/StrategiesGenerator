@@ -1,6 +1,6 @@
 package test
 
-import com.marketmaker.repositories.OrderValue
+import com.marketmaker.repositories.{MarketMakerStrategy, OrderValue}
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
 import org.specs2.specification.core.Fragments
@@ -31,4 +31,18 @@ trait BaseSpec extends Specification {
         """The order valus are matced""",
         """The order value are not matched"""
         )
+
+    def beMarketMakerStrategy(expected : MarketMakerStrategy) : Matcher[MarketMakerStrategy] = (src : MarketMakerStrategy) => {
+
+        src.time == expected.time &&
+            src.inventory == expected.inventory &&
+            src.spread == expected.spread &&
+            src.limitBuyOrderType == expected.limitBuyOrderType &&
+            src.limitBuyOrderSize == expected.limitBuyOrderSize &&
+            src.limitSellOrderType == expected.limitSellOrderType &&
+            src.limitSellOrderSize == expected.limitSellOrderSize &&
+            src.marketOrderType == expected.marketOrderType &&
+            src.marketOrderSize == expected.marketOrderSize &&
+            src.feeStructure == expected.feeStructure
+    }
 }

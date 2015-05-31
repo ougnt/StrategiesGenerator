@@ -2,7 +2,7 @@ package com.marketmaker.helper
 
 import java.sql.{ResultSet, DriverManager, Connection}
 
-import com.marketmaker.repositories.{OrderValue, Phy}
+import com.marketmaker.repositories.{MarketMakerStrategy, OrderValue, Phy}
 
 /**
  * Created by wacharint on 5/17/15.
@@ -12,6 +12,7 @@ class RepositoryHelper {
     val TimeAtMaturity = 300000
     var orderPhyQueue = Seq[Phy]()
     var orderOrderValueQueue = Seq[OrderValue]()
+    var orderMarketMakerStrategyQueue = Seq[MarketMakerStrategy]()
     var connection : Option[Connection] = None
     var isUpdating = false
 
@@ -42,6 +43,19 @@ class RepositoryHelper {
             if(orderOrderValueQueue.size >= databaseSavedInterval) {
                 addOrderOrderValueToDatabase
                 orderOrderValueQueue = Seq[OrderValue]()
+            }
+        }
+    }
+
+    def addMarketMakerStrategy(strategy : MarketMakerStrategy)(implicit databaseName : String, databaseSavedInterval : Short) {
+
+        if(orderMarketMakerStrategyQueue.find( p => p.time == strategy.time && p.spread == strategy.spread && p.inventory == strategy.inventory).isEmpty) {
+            while(isUpdating){ Thread.sleep(10)}
+            orderMarketMakerStrategyQueue = orderMarketMakerStrategyQueue ++ Seq[MarketMakerStrategy](strategy)
+
+            if(orderMarketMakerStrategyQueue.size >= databaseSavedInterval) {
+                addOrderMarketMakerStrategyToDatabase
+                orderMarketMakerStrategyQueue = Seq[MarketMakerStrategy]()
             }
         }
     }
@@ -126,6 +140,46 @@ class RepositoryHelper {
         query = query.replaceAll("UNION[ \n\r\t]*$","")
 
         val sizeOfTheQueue = orderOrderValueQueue.size
+        val updatedRow = statement.executeUpdate(query)
+
+        isUpdating = false
+
+        if(sizeOfTheQueue != updatedRow) {
+
+            throw new RuntimeException("The updated rows is not equal to the number of order in the queue.")
+        }
+    }
+
+    def addOrderMarketMakerStrategyToDatabase(implicit databaseName : String): Unit = {
+
+        isUpdating = true
+
+        if(connection == None) {
+            connect
+        }
+
+        orderPhyQueue = orderPhyQueue.distinct
+
+        val statement = connection.get.createStatement()
+
+        var query =
+            """INSERT OR REPLACE INTO market_maker_strategy """.stripMargin
+
+        orderMarketMakerStrategyQueue.foreach(order => query = query +
+            """SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s UNION """.stripMargin.format(order.time,
+                order.spread,
+                order.inventory,
+                order.limitBuyOrderType,
+                order.limitBuyOrderSize,
+                order.limitSellOrderType,
+                order.limitSellOrderSize,
+                order.marketOrderType,
+                order.marketOrderSize,
+                order.feeStructure))
+
+        query = query.replaceAll("UNION[ \n\r\t]*$","")
+
+        val sizeOfTheQueue = orderMarketMakerStrategyQueue.size
         val updatedRow = statement.executeUpdate(query)
 
         isUpdating = false
@@ -336,6 +390,41 @@ class RepositoryHelper {
         ret.distinct
     }
 
+    def getMarketMakerStrategy()
+                     (implicit databaseName : String) : Seq[MarketMakerStrategy] = {
+
+        if(connection == None) {
+            connect
+        }
+
+        val statement = connection.get.createStatement()
+
+        val query =
+            "SELECT   * FROM     market_maker_strategy"
+
+        val resultSet = statement.executeQuery(query)
+        var ret = Seq[MarketMakerStrategy]()
+
+        while(resultSet.next())
+        {
+            ret = ret ++ Seq[MarketMakerStrategy](
+                new MarketMakerStrategy(){
+                    time = resultSet.getInt("time")
+                    inventory =resultSet.getInt("inventory")
+                    spread = resultSet.getByte("spread")
+                    limitBuyOrderType = resultSet.getInt("limit_buy_order_type")
+                    limitBuyOrderSize = resultSet.getInt("limit_buy_order_Size")
+                    limitSellOrderType = resultSet.getInt("limit_sell_order_type")
+                    limitSellOrderSize = resultSet.getInt("limit_sell_order_Size")
+                    marketOrderType = resultSet.getInt("market_order_type")
+                    marketOrderSize = resultSet.getInt("market_order_Size")
+                    feeStructure = resultSet.getInt("fee_structure")}
+            )
+        }
+
+        ret.distinct
+    }
+
     def deleteAllPhy(implicit databaseName : String) = {
 
         if(connection == None) {
@@ -358,6 +447,19 @@ class RepositoryHelper {
         val statement = connection.get.createStatement()
 
         val query = """DELETE FROM order_value"""
+
+        statement.executeUpdate(query)
+    }
+
+    def deleteAllMarketMakerStrategy(implicit databaseName : String) = {
+
+        if(connection == None) {
+            connect
+        }
+
+        val statement = connection.get.createStatement()
+
+        val query = """DELETE FROM market_maker_strategy"""
 
         statement.executeUpdate(query)
     }
