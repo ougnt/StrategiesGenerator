@@ -6,5 +6,5 @@ package test
 trait TestConfiguration {
 
     implicit val databaseName = """/Users/wacharint/Desktop/MarketStrategiesTest.db"""
-    implicit val databaseSavedInterval : Short = 3
+    implicit var databaseSavedInterval : Short = 3
 }

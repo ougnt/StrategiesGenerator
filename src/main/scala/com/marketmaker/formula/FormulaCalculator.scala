@@ -119,7 +119,30 @@ trait FormulaCalculatorTrait extends MarketParameters {
         calculatedSupMarketOrder._1.orderSize))
     }
 
-    // TODO : looping calculate the order value
+    def calculateAllOrderValue(marketMaxTime : Int)(implicit databaseName : String, databaseSavedInterval : Short) = {
+
+        var time : Int = 0
+        for(time <- 0 to marketMaxTime by marketClockInterval) {
+
+            val phyAtTheTimes = repositoryHelper.getPhys(time)
+            val phyAtEarlierTimes = repositoryHelper.getPhys(time + 500)
+            var inventory : Short = 0
+            for(inventory <- -maximumNumberOfContract to maximumNumberOfContract by 1) {
+
+                var spread : Byte = 1
+                for(spread <- 1 to 3 by 1) {
+
+                    implicit val currentTime : Int = time
+                    implicit val currentSpread : Byte = spread.asInstanceOf[Byte]
+                    val phyAtEarlierTIme: Phy = phyAtEarlierTimes.find(p => p.time == time + 500 && p.inv == inventory && p.spread == spread).
+                        getOrElse(new Phy(time, inventory, spread.asInstanceOf[Byte], 0))
+                    calculateOrderValue(inventory.asInstanceOf[Short],
+                        phyAtTheTimes,
+                        phyAtEarlierTIme)
+                }
+            }
+        }
+    }
 
 
     def supBuyLimitOrder(currentHoldingInventory : Int)
@@ -247,7 +270,6 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
                     3 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 3).get.value
                 )
 
-                // TODO : Add the best strategies to the created strategies table
                 val bestLimitBuyOrder = supBuyLimitOrder(currentInventory)
                 val bestLimitSellOrder = supSellLimitOrder(currentInventory)
 

@@ -358,6 +358,26 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
             )
             resultOrderValue must beOrderValue(expectedOrderValue)
         }
+
+        """provide all data""" in {
+
+            // Setting
+            val repositoryHelper = new RepositoryHelper()
+            val calculator = new FormulaCalculator
+            calculator.repositoryHelper = repositoryHelper
+            calculator.repositoryHelper.deleteAllOrderValue
+            databaseSavedInterval = 50
+            calculator.calculateAllPhyTable(2000)
+            calculator.repositoryHelper.forceUpdatePhyTable
+
+            // Execute
+            calculator.calculateAllOrderValue(2000)
+            calculator.repositoryHelper.forceUpdateOrderValueTable
+
+            // Verify
+            val resOrderValue = calculator.repositoryHelper.getOrderValue()
+            resOrderValue.size mustEqual 315
+        }
     }
 
     def beAppliedToLimitBidOrderConstrains(maximumHoldingInventory : Int, currentHoldingInventory : Int) : Matcher[Order] = (source : Order) => (
