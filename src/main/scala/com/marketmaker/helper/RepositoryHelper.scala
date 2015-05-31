@@ -349,6 +349,19 @@ class RepositoryHelper {
         statement.executeUpdate(query)
     }
 
+    def deleteAllOrderValue(implicit databaseName : String) = {
+
+        if(connection == None) {
+            connect
+        }
+
+        val statement = connection.get.createStatement()
+
+        val query = """DELETE FROM order_value"""
+
+        statement.executeUpdate(query)
+    }
+
     private def connect(implicit databaseName : String) = {
 
         val url = "jdbc:sqlite:%s".format(databaseName)

@@ -9,7 +9,7 @@ import com.marketmaker.repositories.{Strategy, OrderValue, Phy}
 import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
-class HelperSpec extends Specification with TestConfiguration {
+class HelperSpec extends Specification with TestConfiguration with BaseSpec {
 
     sequential
 
@@ -117,21 +117,4 @@ class HelperSpec extends Specification with TestConfiguration {
             repositoryHelper.orderOrderValueQueue.size mustEqual 2
         }
     }
-
-    def beOrderValue(expected : OrderValue) : Matcher[OrderValue] = (src : OrderValue) =>  (
-
-        src.time == expected.time &&
-            src.inventory == expected.inventory &&
-            src.spread == expected.spread &&
-            src.limitOrderStrategyValue == expected.limitOrderStrategyValue &&
-            src.marketOrderStrategyValue == expected.marketOrderStrategyValue &&
-            src.limitBuyType == expected.limitBuyType &&
-            src.limitBuySize == expected.limitBuySize &&
-            src.limitSellType == expected.limitSellType &&
-            src.limitSellSize == expected.limitSellSize &&
-            src.marketType == expected.marketType &&
-            src.marketSize == expected.marketSize ,
-        """The order valus are matced""",
-        """The order value are not matched"""
-        )
 }

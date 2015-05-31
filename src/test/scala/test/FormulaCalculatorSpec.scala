@@ -5,7 +5,7 @@ import java.math.MathContext
 import com.marketmaker.formula.{FormulaCalculatorTrait, FormulaCalculator}
 import com.marketmaker.helper.RepositoryHelper
 import com.marketmaker.math.MathHelper
-import com.marketmaker.repositories.{Phy, Strategy, Order}
+import com.marketmaker.repositories.{OrderValue, Phy, Strategy, Order}
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
 
@@ -326,6 +326,7 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
 
             mockCalculator.repositoryHelper = repositoryHelper
             mockCalculator.repositoryHelper.deleteAllPhy
+            mockCalculator.repositoryHelper.deleteAllOrderValue
             mockCalculator.addPhyAtTerminal
 
             val fakeCurrentsPhy = mockCalculator.repositoryHelper.getPhys()
@@ -333,13 +334,28 @@ class FormulaCalculatorSpec extends Specification with TestObservedValue with Te
 
             // Execute
             val res = mockCalculator.calculateOrderValue(fakeInventory, fakeCurrentsPhy, fakeEarlierPhy)
+            mockCalculator.repositoryHelper.forceUpdateOrderValueTable
 
             // Verify
             val currentPhyValue = fakeCurrentsPhy.find(p => p.spread == currentSpread && p.inv == fakeInventory).get.value
             val earlierPhyValue = fakeEarlierPhy.value
 
-            val expectedResult = - (currentPhyValue - earlierPhyValue) - 10 - 20 - 30 + 40
-            res mustEqual expectedResult
+            val expectedLimitOrderValue = - (currentPhyValue - earlierPhyValue) - 10 - 20 - 30 + 40
+            val resultOrderValue = mockCalculator.repositoryHelper.getOrderValue().head
+            val expectedOrderValue = new OrderValue(
+                currentTime,
+            fakeInventory,
+            currentSpread,
+            expectedLimitOrderValue,
+            0,
+            Strategy.LimitBuyOrderAtTheMarket,
+            2,
+            Strategy.LimitSellOrderAtTheMarket,
+            2,
+            0,
+            0
+            )
+            resultOrderValue must beOrderValue(expectedOrderValue)
         }
     }
 
