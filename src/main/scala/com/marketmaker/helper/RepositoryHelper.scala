@@ -1,6 +1,7 @@
 package com.marketmaker.helper
 
 import java.sql.{ResultSet, DriverManager, Connection}
+import java.util.Date
 
 import com.marketmaker.repositories.{MarketMakerStrategy, OrderValue, Phy}
 
@@ -90,8 +91,10 @@ class RepositoryHelper {
 
         val statement = connection.get.createStatement()
 
+        statement.execute("BEGIN TRANSACTION")
+
         var query =
-            """INSERT OR REPLACE INTO phy """.stripMargin
+            """INSERT INTO phy """.stripMargin
 
         orderPhyQueue.foreach(order => query = query +
             """SELECT %s,%s,%s,%s UNION """.stripMargin.format(order.time, order.inv, order.spread, order.value))
@@ -101,12 +104,8 @@ class RepositoryHelper {
         val sizeOfTheQueue = orderPhyQueue.size
         val updatedRow = statement.executeUpdate(query)
 
+        statement.execute("COMMIT TRANSACTION")
         isUpdating = false
-
-        if(sizeOfTheQueue != updatedRow) {
-
-            throw new RuntimeException("The updated rows is not equal to the number of order in the queue.")
-        }
     }
 
     def addOrderOrderValueToDatabase(implicit databaseName : String): Unit = {
@@ -122,7 +121,7 @@ class RepositoryHelper {
         val statement = connection.get.createStatement()
 
         var query =
-            """INSERT OR REPLACE INTO order_value """.stripMargin
+            """INSERT INTO order_value """.stripMargin
 
         orderOrderValueQueue.foreach(order => query = query +
             """SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s UNION """.stripMargin.format(order.time,

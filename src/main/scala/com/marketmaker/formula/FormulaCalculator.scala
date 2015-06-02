@@ -4,6 +4,8 @@ package com.marketmaker.formula
  * Created by wacharint on 5/19/15.
  */
 
+import java.util.Date
+
 import com.marketmaker.helper.{Configuration, RepositoryHelper}
 import com.marketmaker.math._
 import com.marketmaker.repositories.{OrderValue, Order, Strategy, Phy}
@@ -141,6 +143,7 @@ trait FormulaCalculatorTrait extends MarketParameters {
                         phyAtEarlierTIme)
                 }
             }
+            Console.println("%s : Calculating order value Table : %s/%s".format(new Date(), time,marketMaxTime))
         }
     }
 
@@ -228,23 +231,16 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
             implicit val currentTime : Int = counter * marketClockInterval
             calculatePhyAtEarlyTimes
+            Console.println("%s : Calculating Phy Table : %s/%s".format(new Date(), counter,endCount))
         }
     }
 
     def calculatePhyAtEarlyTimes(implicit currentTime : Int) = {
 
         // create target intent to get phys
-        var interestedPhy = Seq[(Int,Int,Byte)]()
         var targetInventory = -maximumNumberOfContract
-        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
 
-            interestedPhy = interestedPhy ++ Seq[(Int,Int,Byte)](
-                (currentTime, targetInventory, 1),
-                (currentTime, targetInventory, 2),
-                (currentTime, targetInventory, 3)
-            )
-        }
-        val currentPhys = repositoryHelper.getPhys(interestedPhy)
+        val currentPhys = repositoryHelper.getPhys(currentTime)
 
         // looping generate phy at earlier time
         for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
@@ -263,11 +259,12 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
 
             try {
                 currentSpread = spread.asInstanceOf[Byte]
+                val phys = currentPhys.filter(p => p.time == currentTime && p.inv == currentInventory)
 
                 val currentPhyMap = Map[Int, Double](
-                    1 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 1).get.value,
-                    2 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 2).get.value,
-                    3 -> currentPhys.find(p => p.time == currentTime && p.inv == currentInventory && p.spread == 3).get.value
+                    1 -> phys.find(p => p.spread == 1).get.value,
+                    2 -> phys.find(p => p.spread == 2).get.value,
+                    3 -> phys.find(p => p.spread == 3).get.value
                 )
 
                 val bestLimitBuyOrder = supBuyLimitOrder(currentInventory)
@@ -297,16 +294,10 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
     override def supMarketOrder(currentHoldingInventory : Int)
                                (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 
-        var interestedTimeAndInventory = Seq[(Int,Int,Byte)]()
         var strategies = Map[(Int,Int), Double]()
         var orderSize : Int = 0
 
-        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
-
-            interestedTimeAndInventory = interestedTimeAndInventory ++ Seq[(Int,Int,Byte)]((currentTime, targetInventory, currentSpread))
-        }
-
-        val phys = repositoryHelper.getPhys(interestedTimeAndInventory)
+        val phys = repositoryHelper.getPhys(currentTime)
 
         val phyBeforeMatch = phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory)
 
@@ -339,17 +330,11 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
                              (implicit currentSpread : Byte, currentTime : Int) : (Order,Double) = {
 
         val side = if(isBidOrder) "BID" else "ASK"
-        var interestedTimeAndInventory = Seq[(Int,Int,Byte)]()
         var strategies = Map[(Int,Int), Double]()
         val lamdaAtTheMarket : Double = lamdaTable(side, currentSpread)
         val lamdaAtTheMarketPlus : Double = lamdaTable(side, currentSpread - 1)
 
-        for(targetInventory <- -maximumNumberOfContract to maximumNumberOfContract) {
-
-            interestedTimeAndInventory = interestedTimeAndInventory ++ Seq[(Int,Int,Byte)]((currentTime, targetInventory, currentSpread))
-        }
-
-        val phys = repositoryHelper.getPhys(interestedTimeAndInventory)
+        val phys = repositoryHelper.getPhys(currentTime)
 
         strategies = strategies ++ getStrategies(strategies,
             isAggressive = false,

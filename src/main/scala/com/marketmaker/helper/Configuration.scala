@@ -5,5 +5,5 @@ package com.marketmaker.helper
  */
 trait Configuration {
     implicit val databaseName = """/Users/wacharint/Desktop/MarketStrategies.db"""
-    implicit val databaseSavedInterval : Short = 100
+    implicit val databaseSavedInterval : Short = 1000
 }
