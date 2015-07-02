@@ -22,7 +22,7 @@ trait FormulaCalculatorTrait extends MarketParameters {
         var ret : Double = 0
         var j : Int = 1
 
-        for( j <- 1 to 3){
+        for( j <- 1 to maxSpread){
             ret = ret + ( spreadChange((currentSpread, j)) * (phys(j) - phys(currentSpread)) )
         }
 
@@ -71,12 +71,11 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
         for( inv <- -maximumNumberOfContract to maximumNumberOfContract) {
 
-            var currentSpread : Byte = 1
-            repositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
-            currentSpread = 2
-            repositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
-            currentSpread = 3
-            repositoryHelper.addPhy(time = 0, inv, currentSpread, - math.abs(inv) * currentSpread * tickSize / 2)
+            var spread = 1
+            for(spread <- 1 to maxSpread) {
+                val currentSpread: Byte = spread.asInstanceOf[Byte]
+                repositoryHelper.addPhy(time = 0, inv, currentSpread, -math.abs(inv) * currentSpread * tickSize / 2)
+            }
         }
 
         repositoryHelper.forceUpdatePhyTable
@@ -86,11 +85,18 @@ trait FormulaCalculatorTrait extends MarketParameters {
     def calculateOrderValue(currentInventory : Short, currentPhys : Seq[Phy], earlierPhy : Phy)
                            (implicit currentTime : Int, currentSpread : Byte, databaseName : String, databaseSavedInterval : Short) = {
 
-        val phyMap = Map[Int, Double](
-            1 -> currentPhys.find(p => p.spread == 1 && p.time == currentTime && p.inv == currentInventory).get.value,
-            2 -> currentPhys.find(p => p.spread == 2 && p.time == currentTime && p.inv == currentInventory).get.value,
-            3 -> currentPhys.find(p => p.spread == 3 && p.time == currentTime && p.inv == currentInventory).get.value
-        )
+        var phyMap = Map[Int, Double]()
+
+        var spread = 1
+        for(spread <- 1 to maxSpread){
+
+            phyMap = phyMap ++ Map[Int, Double](
+                spread -> currentPhys.find(p =>
+                    p.spread == spread.asInstanceOf[Byte] &&
+                        p.time == currentTime &&
+                        p.inv == currentInventory).get.value)
+        }
+
         val calculatedValueOfSpread = valueOfSpread(phyMap, spreadTransitionMatrix)
         val calculatedSupBuyLimitOrder = supBuyLimitOrder(currentInventory)
         val calculatedSupSellLimitOrder = supSellLimitOrder(currentInventory)
@@ -132,7 +138,7 @@ trait FormulaCalculatorTrait extends MarketParameters {
             for(inventory <- -maximumNumberOfContract to maximumNumberOfContract by 1) {
 
                 var spread : Byte = 1
-                for(spread <- 1 to 3 by 1) {
+                for(spread <- 1 to maxSpread by 1) {
 
                     implicit val currentTime : Int = time
                     implicit val currentSpread : Byte = spread.asInstanceOf[Byte]
@@ -175,38 +181,42 @@ trait FormulaCalculatorTrait extends MarketParameters {
 
         var returnStrategies = strategies
         val targetInventory = 0
-        for(targetInventory <- 0 to maximumNumberOfContract - currentHoldingInventory) {
+        for(targetInventory <- 0 to maximumNumberOfContract) {
 
             val inventoryChange = if(isBidOrder) targetInventory else -targetInventory
-            val phyBeforeMatch : Phy =
-                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory) orNull
 
-            val phyAfterMatch : Phy =
-                phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory + inventoryChange) orNull
+            if(math.abs(currentHoldingInventory + inventoryChange) <= maximumNumberOfContract) {
 
-            if(phyAfterMatch == null || phyBeforeMatch == null) {
+                val phyBeforeMatch: Phy =
+                    phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory) orNull
 
-                // the order is not valid, skip to the next loop
-            } else {
+                val phyAfterMatch: Phy =
+                    phys.find(phy => phy.time == currentTime && phy.inv == currentHoldingInventory + inventoryChange) orNull
 
-                val value = valueOfLimitOrder(lamda,
-                    phyAfterMatch.value,
-                    phyBeforeMatch.value,
-                    targetInventory,
-                    isAggressive)
+                if (phyAfterMatch == null || phyBeforeMatch == null) {
 
-                if (isBidOrder && !isAggressive) {
-
-                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarket, targetInventory) -> value
-                } else if (isBidOrder && isAggressive) {
-
-                    returnStrategies += (Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, targetInventory) -> value
-                } else if (!isBidOrder && isAggressive) {
-
-                    returnStrategies += (Strategy.LimitSellOrderAtTheMarketMinusOneSpread, targetInventory) -> value
+                    // the order is not valid, skip to the next loop
                 } else {
 
-                    returnStrategies += (Strategy.LimitSellOrderAtTheMarket, targetInventory) -> value
+                    val value = valueOfLimitOrder(lamda,
+                        phyAfterMatch.value,
+                        phyBeforeMatch.value,
+                        targetInventory,
+                        isAggressive)
+
+                    if (isBidOrder && !isAggressive) {
+
+                        returnStrategies += (Strategy.LimitBuyOrderAtTheMarket, targetInventory) -> value
+                    } else if (isBidOrder && isAggressive) {
+
+                        returnStrategies += (Strategy.LimitBuyOrderAtTheMarketPlusOneSpread, targetInventory) -> value
+                    } else if (!isBidOrder && isAggressive) {
+
+                        returnStrategies += (Strategy.LimitSellOrderAtTheMarketMinusOneSpread, targetInventory) -> value
+                    } else {
+
+                        returnStrategies += (Strategy.LimitSellOrderAtTheMarket, targetInventory) -> value
+                    }
                 }
             }
         }
@@ -255,17 +265,21 @@ class FormulaCalculator extends FormulaCalculatorTrait with Configuration {
         implicit var currentSpread : Byte = 1
         var spread = 1
 
-        for(spread <- 1 to 3) {
+        for(spread <- 1 to maxSpread) {
 
             try {
                 currentSpread = spread.asInstanceOf[Byte]
                 val phys = currentPhys.filter(p => p.time == currentTime && p.inv == currentInventory)
 
-                val currentPhyMap = Map[Int, Double](
-                    1 -> phys.find(p => p.spread == 1).get.value,
-                    2 -> phys.find(p => p.spread == 2).get.value,
-                    3 -> phys.find(p => p.spread == 3).get.value
-                )
+                var currentPhyMap = Map[Int, Double]()
+
+                var sp = 1
+                for(sp <- 1 to maxSpread){
+
+                    currentPhyMap = currentPhyMap ++ Map[Int, Double](
+                        sp -> phys.find(p => p.spread == sp.asInstanceOf[Byte]).get.value
+                    )
+                }
 
                 val bestLimitBuyOrder = supBuyLimitOrder(currentInventory)
                 val bestLimitSellOrder = supSellLimitOrder(currentInventory)

@@ -5,7 +5,7 @@ package com.marketmaker.repositories
  */
 class Strategy {
 
-    var bidLimitORder : Order = null
+    var bidLimitOrder : Order = null
     var askLimitOrder : Order = null
     var marketOrder : Order = null
 

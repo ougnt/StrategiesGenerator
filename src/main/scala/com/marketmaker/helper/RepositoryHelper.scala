@@ -138,15 +138,11 @@ class RepositoryHelper {
 
         query = query.replaceAll("UNION[ \n\r\t]*$","")
 
-        val sizeOfTheQueue = orderOrderValueQueue.size
-        val updatedRow = statement.executeUpdate(query)
+        statement.executeUpdate(query)
+
+        statement.close
 
         isUpdating = false
-
-        if(sizeOfTheQueue != updatedRow) {
-
-            throw new RuntimeException("The updated rows is not equal to the number of order in the queue.")
-        }
     }
 
     def addOrderMarketMakerStrategyToDatabase(implicit databaseName : String): Unit = {
@@ -180,6 +176,9 @@ class RepositoryHelper {
 
         val sizeOfTheQueue = orderMarketMakerStrategyQueue.size
         val updatedRow = statement.executeUpdate(query)
+
+
+        statement.close()
 
         isUpdating = false
 
@@ -237,6 +236,7 @@ class RepositoryHelper {
             """.format(time).stripMargin
 
         val resultSet = statement.executeQuery(query)
+
         var ret = Seq[Phy]()
 
         while(resultSet.next())
@@ -245,6 +245,8 @@ class RepositoryHelper {
                 new Phy(resultSet.getInt("time"), resultSet.getInt("inventory"), resultSet.getByte("spread"), resultSet.getDouble("phy"))
             )
         }
+
+        statement.close
 
         ret
     }
@@ -472,4 +474,9 @@ class RepositoryHelper {
     }
 }
 
+object RepositoryHelper {
+
+    var counter : Int = 0
+
+    }
 
